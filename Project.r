@@ -20,8 +20,8 @@ require(mice)
 require(reshape)
 require(MASS)
 require(ggpubr)
-require(car) #for variance inflation factor etc.
-require(factoextra) #to graphically represent PCA results
+require(car)
+require(factoextra)
 require(class)
 require(pROC)
 require(ggnewscale)
@@ -32,39 +32,31 @@ require(DT)
 require(tidyr)
 require(corrplot)
 
-if (!require("hms")) install.packages("hms")
-if (!require("kableExtra")) install.packages("kableExtra")
+require(dplyr)
+if (!require("hms")) install.packages("hms") # fors non serve
+if (!require("kableExtra")) install.packages("kableExtra") # forse non serve
 
-######Data Cleaning, Exploratory Data Analysis
 
+
+########################################################
+## Data Cleaning, Exploratory Data Analysis
+########################################################
 
 #load csv file and create dataframe
 BankData <- read.csv('bank_accounts_train.csv', stringsAsFactors = T)
 
-BankData = BankData %>%
-  filter(!duplicated(.)) %>%
-  dplyr::select(-1) %>%
-  mutate(Closed_Account = as_factor(.$Closed_Account)) %>%
-  mutate(Education_Level = na_if(Education_Level, 'Unknown')) %>%
-  mutate(Marital_Status = na_if(Marital_Status, 'Unknown'))
+BankData =  BankData %>%
+            filter(!duplicated(.)) %>%
+            dplyr::select(-1) %>%
+            mutate(Closed_Account = as_factor(.$Closed_Account)) %>%
+            mutate(Education_Level = na_if(Education_Level, 'Unknown')) %>%
+            mutate(Marital_Status = na_if(Marital_Status, 'Unknown'))
 
 
+########################################################
+## Describe the data, measure and visualize the most relevant relations
+########################################################
 
-# How to deal with unknown values?
-# Since there are unknown values only for the categorical variables, they will not harm
-# predictive power of any model for the simple reason that Unknown by itself may be considered as
-# a category. We thus have two options:
-# Option 1: we consider Unknown as a category by itself, thus without dealing with it
-# Option 2: we replace all Unknowns with NA and ultimately discard them
-# As we will see soon, the only categorical variable affecting Closed_Account is Gender,
-# while Unknown classes exist for Education Level and Marital Status; discarding Unknown rows
-# would be a huge mistake, since it would cause a useless reduction of rows that may reduce
-# our final model's accuracy.
-
-
-
-###POINT 2
-#Describe the data with some simple built-in functions
 str(BankData)
 head(BankData)
 summary(BankData)
@@ -88,137 +80,80 @@ Avg_Utilization_Ratio = BankData$Avg_Utilization_Ratio
 Income = BankData$Income
 Closed_Account = BankData$Closed_Account
 
-#ERROR Lungo da calcolare e inutile
-#PLOT DISPERSION MATRIX
-#dfdm = data.frame(Customer_Age, Dependent_count, Months_on_book, Total_Relationship_Count, Months_Inactive_12_mon, Contacts_Count_12_mon, Credit_Limit, Total_Revolving_Bal, Avg_Open_To_Buy, Total_Amt_Chng_Q4_Q1, Total_Trans_Ct, Total_Trans_Amt, Total_Ct_Chng_Q4_Q1, Avg_Utilization_Ratio, Income)
-#ggpairs(dfdm, aes(alpha=0.4))
 
-#PLOT CORRELATION MATRIX
+#Correlation Matrix
 BankData %>% 
-  dplyr::select(Customer_Age, Dependent_count, Months_on_book, Total_Relationship_Count, Months_Inactive_12_mon, Contacts_Count_12_mon, Credit_Limit, Total_Revolving_Bal, Avg_Open_To_Buy, Total_Amt_Chng_Q4_Q1, Total_Trans_Ct, Total_Trans_Amt, Total_Ct_Chng_Q4_Q1, Avg_Utilization_Ratio, Income) %>%
-  ggcorr(label=TRUE)
+        dplyr::select(Customer_Age, Dependent_count, Months_on_book, Total_Relationship_Count, Months_Inactive_12_mon, Contacts_Count_12_mon, Credit_Limit, Total_Revolving_Bal, Avg_Open_To_Buy, Total_Amt_Chng_Q4_Q1, Total_Trans_Ct, Total_Trans_Amt, Total_Ct_Chng_Q4_Q1, Avg_Utilization_Ratio, Income) %>%
+        ggcorr(nbreaks = 4, palette = "RdGy", label = TRUE, label_size = 3, label_color = "white")
 
-# Code for table formatting (markdown output)
-BankData %>% 
-  kableExtra::kbl() %>%
-  kableExtra::kable_paper(full_width = TRUE) %>%
-  kableExtra::kable_styling(bootstrap_options = c("striped", "condensed", "responsive")) %>%
-  kableExtra::scroll_box(width = "700px", height = "500px")
+# Visualize data
+qplot(Months_on_book, data = BankData, geom = "histogram",fill=Education_Level , bins = 30)
+qplot(Credit_Limit, data = BankData, geom = "histogram",fill=Marital_Status)
+qplot(Months_on_book, data = BankData, geom = "density",col=Education_Level)
+qplot(Credit_Limit, data = BankData, geom = "density",col=Card_Category)
 
-#PLOT BOXPLOTS
-# In this case we isolate the numerical variables (it does not make sense to 
-# plot boxplots of categorical).
-BankData_Numeric = BankData %>%
-  dplyr::select(where(is.numeric))
-
-BankData_Numeric = setDT(BankData_Numeric)
-melt_numeric = melt(BankData_Numeric)
-p = ggplot(melt_numeric, aes(factor(variable), value, color="Red"))
-k = p + geom_boxplot() + theme(legend.position="none") + rremove('x.text') +  
-  rremove('xylab') + 
-  facet_wrap(~variable, scale="free")
-k
-
-########################################################
-##POINT 3
-########################################################
-
-# We fit the logistic regression model. 
-log_mod_gender = glm (Closed_Account ~ Gender, family='binomial', data = BankData)
-summary(log_mod_gender)
-# Let's see the posterior probabilities from the training set.
-head(log_mod_gender$fitted.values)
-
+#Gender
 BankData %>%
   ggplot(aes(x = Gender, col = 'red')) +
   labs(y = 'Clients') +
   geom_bar()
 
+#Box Plots
+BankData_Num = data.table(
+                          BankData %>%
+                          dplyr::select(where(is.numeric))
+                          )
+BankData_Num$Income = as.integer(BankData_Num$Income)
 
-BankData %>%
-  ggplot(aes(x = Gender, y = Closed_Account, col = 'red')) +
-  labs(y = 'Closed Account') +
-  geom_bar(stat = 'identity')
+MultiPlot <-  ggplot( melt(BankData_Num,id.vars=integer()), aes(factor(variable), value, color="Red")) + 
+              geom_boxplot() + 
+              theme(legend.position="none") +
+              rremove('x.text') +  
+              rremove('xylab') + 
+              facet_wrap(~variable, scale="free")
 
+#Show Plot
+MultiPlot
 
-# We computed two plots, the first one to compare the proportion of males to females
-# in the training set, the second one to check if there was a insightful difference in the number of closed accounts
-# between the two classes. We can see from the plots that the MLE computation should work fine here,
-# since the closed accounts cases are not strictly isolated in one of the two gender classes. 
+########################################################
+## Fit a Logistic Regression Model to estimate the effect of Income and Gender on the probability of closing acc.
+########################################################
 
+TrainSet = BankData[1:4300,]
+TestSet = BankData[4301:5301,]
 
-# We use simple conditional subsetting in order to avoid columns we don't need here
+Model = glm( 
+             formula = Closed_Account ~ Income + Gender, 
+             family = binomial(link="logit"),
+             data = TrainSet
+           )
 
-logit.fit = glm(Closed_Account~., family = 'binomial', data = BankData[,-c(5,6)])
-summary(logit.fit)
+summary(Model)
 
-logit.fit.F = step(glm(Closed_Account~1,family = "binomial",data = BankData[,-c(5,6)]),
-                   scope = formula(logit.fit), direction = "forward")
-
-logit.fit.B = step(glm(Closed_Account~.,family = "binomial",data = BankData[,-c(5,6)]),
-                   direction = "backward")
-
-logit.fit.BB = step(glm(Closed_Account~1,family = "binomial",data = BankData[,-c(5,6)]),
-                    scope = formula(logit.fit), direction = "both")
-
-# Gender is kept by the three methods of progression. Let's try witch BIC
-
-logit.fit.F.BIC = step(glm(Closed_Account~1,family = "binomial",data = BankData[,-c(5,6)]),
-                       scope = formula(logit.fit), k = log(nrow(BankData)), direction = "forward")
-logit.fit.B.BIC = step(glm(Closed_Account~.,family = "binomial",data = BankData[,-c(5,6)]),
-                       k =log(nrow(BankData)), direction = "backward")
-logit.fit.BB.BIC = step(glm(Closed_Account~1,family = "binomial",data = BankData[,-c(5,6)]),
-                        k =log(nrow(BankData)), scope = formula(logit.fit),direction = "both")
-
-# It is kept even by BIC, hence it seems significant for the overall prediction.
-# Even after having seen all of this, we can't say - looking at the posterior probabilities
-# that come from the logistic regression. It is useless, if we computed a roc we would get
-# an AUC very similar to random choice. 
-
-
-# Now we compute confidence intervals for the coefficients estimated in the logistic regression
-# on the training data 
-
-confint(log_mod_gender) #95% is the default value for the function
-
-#From the correlation matrix we can well suppose that Income has no effect at all on the
-#probability of closing an account
-
-train = BankData[1:4300,]
-test = BankData[4301:5301,]
-
-
-mod = glm(formula = Closed_Account ~ Income + Gender, 
-          family = binomial(link="logit"),
-          data = train)
-
-summary(mod)
-#it seems what we supposed about Income is true; conversely, the same may not be 
-#true for Gender
-
-#make predictions
-p_pred = predict(mod, test, type = "response")
-test$p_pred = p_pred
-
+#Predictions
+TestSet$prediction = predict(Model, TestSet, type = "response")
 
 # plot results
-test %>%
-  ggplot(aes(x=Income, y=as.numeric(Closed_Account), group=Gender)) + 
-  geom_point(aes(col=Gender), alpha=0.5) + 
-  geom_line(aes(y=p_pred, col=Gender), data=test)
+TestSet %>%
+  ggplot(aes(x=Income, y=Closed_Account, group=Gender)) + 
+  geom_point(aes(col=Gender), alpha=0.6) + 
+  geom_line(aes(y=prediction, col=Gender), data=TestSet)
+
 #such logistic lines only confirm what we expected: income does not consistently affect
 #the probability of closing an account
 
-test_mod_pred = rep(0, nrow(test))
+test_mod_pred = rep(0, nrow(TestSet))
 test_mod_pred[p_pred>0.15]=1
 
-1-mean(test_mod_pred==test$Closed_Account) #overall test error rate
+#Test error rate
+1 - mean(test_mod_pred==TestSet$Closed_Account)
 
-table(test_mod_pred,test$Closed_Account)#confusion matrix
+#Confusion matrix
+table(test_mod_pred,TestSet$Closed_Account)
 
-tab_rates_test = prop.table(table(test_mod_pred,test$Closed_Account),margin = 2)  #test
+tab_rates_test = prop.table(table(test_mod_pred,TestSet$Closed_Account),margin = 2)  #test
 
-ROC=roc(test$Closed_Account,test_mod_pred,plot = TRUE,
+ROC=roc(TestSet$Closed_Account,test_mod_pred,plot = TRUE,
         legacy.axes=TRUE,col="midnightblue",lwd=3,
         auc.polygon=T,auc.polygon.col="lightblue",print.auc=T)
 
