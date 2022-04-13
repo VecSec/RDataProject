@@ -1,17 +1,3 @@
-# Package with install errors
-
-#require(patchwork) #to plot several charts jointly
-#require(manipulate)
-#require(hexbin) #for heatmaps
-#require(ggridges) #for ridgeplots
-#require(systemfonts) # use custom fonts (need to be installed on your OS)  
-#require(scico)       # scico color palettes(http://www.fabiocrameri.ch/colourmaps.php) in R 
-#require(ggtext)      # add improved text rendering to ggplot2
-#require(ggforce)     # add missing functionality to ggplot2
-#require(ggdist)      # add uncertainty visualizations to ggplot2
-#require(gclus)
-#_______________
-
 require(tidyverse)
 require(plotly)
 require(GGally)
@@ -46,11 +32,11 @@ if (!require("kableExtra")) install.packages("kableExtra") # forse non serve
 BankData <- read.csv('bank_accounts_train.csv', stringsAsFactors = T)
 
 BankData =  BankData %>%
-            filter(!duplicated(.)) %>%
-            dplyr::select(-1) %>%
-            mutate(Closed_Account = as_factor(.$Closed_Account)) %>%
-            mutate(Education_Level = na_if(Education_Level, 'Unknown')) %>%
-            mutate(Marital_Status = na_if(Marital_Status, 'Unknown'))
+  filter(!duplicated(.)) %>%
+  dplyr::select(-1) %>%
+  mutate(Closed_Account = as_factor(.$Closed_Account)) %>%
+  mutate(Education_Level = na_if(Education_Level, 'Unknown')) %>%
+  mutate(Marital_Status = na_if(Marital_Status, 'Unknown'))
 
 
 ########################################################
@@ -81,10 +67,11 @@ Income = BankData$Income
 Closed_Account = BankData$Closed_Account
 
 
+
 #Correlation Matrix
 BankData %>% 
-        dplyr::select(Customer_Age, Dependent_count, Months_on_book, Total_Relationship_Count, Months_Inactive_12_mon, Contacts_Count_12_mon, Credit_Limit, Total_Revolving_Bal, Avg_Open_To_Buy, Total_Amt_Chng_Q4_Q1, Total_Trans_Ct, Total_Trans_Amt, Total_Ct_Chng_Q4_Q1, Avg_Utilization_Ratio, Income) %>%
-        ggcorr(nbreaks = 4, palette = "RdGy", label = TRUE, label_size = 3, label_color = "white")
+  dplyr::select(Customer_Age, Dependent_count, Months_on_book, Total_Relationship_Count, Months_Inactive_12_mon, Contacts_Count_12_mon, Credit_Limit, Total_Revolving_Bal, Avg_Open_To_Buy, Total_Amt_Chng_Q4_Q1, Total_Trans_Ct, Total_Trans_Amt, Total_Ct_Chng_Q4_Q1, Avg_Utilization_Ratio, Income) %>%
+  ggcorr(nbreaks = 4, palette = "RdGy", label = TRUE, label_size = 3, label_color = "white")
 
 # Visualize data
 qplot(Months_on_book, data = BankData, geom = "histogram",fill=Education_Level , bins = 30)
@@ -100,17 +87,17 @@ BankData %>%
 
 #Box Plots
 BankData_Num = data.table(
-                          BankData %>%
-                          dplyr::select(where(is.numeric))
-                          )
+  BankData %>%
+    dplyr::select(where(is.numeric))
+)
 BankData_Num$Income = as.integer(BankData_Num$Income)
 
 MultiPlot <-  ggplot( melt(BankData_Num,id.vars=integer()), aes(factor(variable), value, color="Red")) + 
-              geom_boxplot() + 
-              theme(legend.position="none") +
-              rremove('x.text') +  
-              rremove('xylab') + 
-              facet_wrap(~variable, scale="free")
+  geom_boxplot() + 
+  theme(legend.position="none") +
+  rremove('x.text') +  
+  rremove('xylab') + 
+  facet_wrap(~variable, scale="free")
 
 #Show Plot
 MultiPlot
@@ -119,14 +106,14 @@ MultiPlot
 ## Fit a Logistic Regression Model to estimate the effect of Income and Gender on the probability of closing acc.
 ########################################################
 
-TrainSet = BankData[1:4300,]
+TrainSet = BankData[1:4301,]
 TestSet = BankData[4301:5301,]
 
 Model = glm( 
-             formula = Closed_Account ~ Income + Gender, 
-             family = binomial(link="logit"),
-             data = TrainSet
-           )
+  formula = Closed_Account ~ Income + Gender, 
+  family = binomial(link="logit"),
+  data = TrainSet
+)
 
 summary(Model)
 
@@ -143,10 +130,11 @@ TestSet %>%
 #the probability of closing an account
 
 test_mod_pred = rep(0, nrow(TestSet))
-test_mod_pred[p_pred>0.15]=1
+test_mod_pred[TestSet$prediction>0.15]=1
 
 #Test error rate
-1 - mean(test_mod_pred==TestSet$Closed_Account)
+ErrorRate = 1 - mean(test_mod_pred==TestSet$Closed_Account)
+ErrorRate
 
 #Confusion matrix
 table(test_mod_pred,TestSet$Closed_Account)
@@ -154,42 +142,46 @@ table(test_mod_pred,TestSet$Closed_Account)
 tab_rates_test = prop.table(table(test_mod_pred,TestSet$Closed_Account),margin = 2)  #test
 
 ROC=roc(TestSet$Closed_Account,test_mod_pred,plot = TRUE,
-        legacy.axes=TRUE,col="midnightblue",lwd=3,
-        auc.polygon=T,auc.polygon.col="lightblue",print.auc=T)
+        legacy.axes=TRUE,col="red",lwd=3,
+        auc.polygon=T,auc.polygon.col="green",print.auc=T)
 
-#AUC=0.541 for threshold=0.15; the two predictors come with low accuracy and an overall
-#error rate close to 0.5
-#This might be considered as a baseline for future improvements
 
 ########################################################
 ## POINT 4
 ########################################################
+##Consider only the continuous predictors Total Trans Amt and Total Trans Ct.
 
-#Classification models using only two predictors: Total_Trans_Ct and Total_Trans_Amt
-#Having two distinct continuous predictors may be problematic for result visualization, hence
-#we reduce data dimension by applying PCA in order to have a single-dimension predictor,
-#for all the three models
+require(patchwork) #to plot several charts jointly
+require(manipulate)
+require(hexbin) #for heatmaps
+require(ggridges) #for ridgeplots
+require(systemfonts) # use custom fonts (need to be installed on your OS)  
+require(scico)       # scico color palettes(http://www.fabiocrameri.ch/colourmaps.php) in R 
+require(ggtext)      # add improved text rendering to ggplot2
+require(ggforce)     # add missing functionality to ggplot2
+require(ggdist)      # add uncertainty visualizations to ggplot2
+require(gclus)
 
-reduced = data.frame(Total_Trans_Ct, Total_Trans_Amt)
+TotalPred = data.frame(Total_Trans_Ct, Total_Trans_Amt)
 
-reduced = prcomp(reduced, scale=TRUE) #scale=TRUE, since the dataset comes with different scales and has not been scaled so far
-fviz_eig(reduced) #almost 100% of variability caught by the first principal component
-reduced = data.frame(reduced[["x"]])
+TotalPred = prcomp(TotalPred, scale=TRUE) #scale=TRUE, since the dataset comes with different scales and has not been scaled so far
+fviz_eig(TotalPred) #almost 100% of variability caught by the first principal component
+TotalPred = data.frame(TotalPred[["x"]])
 
-data = data.frame(reduced$PC1, reduced$PC2, BankData$Closed_Account)
+data = data.frame(TotalPred$PC1, TotalPred$PC2, BankData$Closed_Account)
 
-#ERROR correlation matrix
+#correlation matrix
 data %>% 
-  dplyr::select(BankData.Closed_Account, reduced.PC1, reduced.PC2) %>%
+  dplyr::select(BankData.Closed_Account, TotalPred.PC1, TotalPred.PC2) %>%
   ggcorr(label=TRUE)
 
 #visualize data points
 pl1 = data %>%
-  ggplot(aes(x=reduced.PC1, y=BankData.Closed_Account)) + 
+  ggplot(aes(x=TotalPred.PC1, y=BankData.Closed_Account)) + 
   geom_point()
 
 pl2 = data %>%
-  ggplot(aes(x=reduced.PC2, y=BankData.Closed_Account)) + 
+  ggplot(aes(x=TotalPred.PC2, y=BankData.Closed_Account)) + 
   geom_point()
 
 pl1 / pl2
@@ -198,16 +190,15 @@ pl1 / pl2
 df_train = data[1:4300,]
 df_test = data[4301:5301,]
 
-
 ########################################################
 ## Model 1: k-NN
 ########################################################
 
 #visualize all the data
 data %>%
-  ggplot(aes(x=reduced.PC1, y=reduced.PC2)) + 
-  geom_point(aes(col=as.factor(BankData.Closed_Account))) + 
-  scale_color_manual(values = c("#481568FF", "#FDE725FF"))+ 
+  ggplot(aes(x=TotalPred$PC1, y=TotalPred$PC2)) + 
+  geom_point(aes(col=as.factor(BankData$Closed_Account))) + 
+  scale_color_manual(values = c("#d31919", "#83d319"))+ 
   coord_fixed() +
   labs(x="PC1",
        y="PC2")
@@ -233,6 +224,7 @@ for (i in ks){
   scores[i] = ROC$auc
 }
 
+
 scores = matrix(scores)
 df_scores = data.frame(ks, scores) 
 
@@ -256,16 +248,15 @@ k = optimal_k[[1]][1] #optimal number of neighbors
 #apply k-NN with the optimal number of neighbors
 #k=17
 df_pred = copy(df_test)
-df_pred$class_k17 = knn(train=df_train[,1:2], test = df_test[,1:2], k=17, cl=df_train$BankData.Closed_Account)
+df_pred$class_k17 = knn(train=df_train[,1:2], test = df_test[,1:2], k=17, cl=df_train$Closed_Account)
 
 
 # plot predicted regions
 p_k17 = 
   df_pred %>%
-  ggplot(aes(x=reduced.PC1, y=reduced.PC2))+
-  geom_point(aes(col=class_k17), alpha=0.9, pch = 4, size=0.8) + 
-  #geom_path(data=df_bay, mapping=aes(x=x, y=y)) + 
-  scale_color_manual("K=1", values = c("blue", "red"))+
+  ggplot(aes(x=TotalPred$PC1[0:nrow(df_pred)], y=TotalPred$PC2[0:nrow(df_pred)]))+
+  geom_point(aes(col=class_k17), alpha=0.9, pch = 16, size=1.5) +
+  scale_color_manual("K=1", values = c("#d31919", "#83d319"))+
   coord_fixed() +
   labs(x=quote(X[1]),
        y=quote(X[2]))
@@ -274,14 +265,14 @@ p_k17
 #compare predictions (on test set) with test set real values
 p_k17 + 
   new_scale_color() + 
-  geom_point(data=df_test, mapping=aes(x=reduced.PC1, y=reduced.PC2, col=as.factor(BankData.Closed_Account))) + 
-  scale_color_manual("Test", values = c("#481568FF", "#FDE725FF"))
+  geom_point(data=df_test, mapping=aes(x=TotalPred$PC1[0:nrow(df_test)], y=TotalPred$PC2[0:nrow(df_test)], col=as.factor(BankData$Closed_Account[0:nrow(df_test)]))) + 
+  scale_color_manual("Test", values = c("#d31919", "#83d319"))
 
 
 
 df_pred %>%
   summarise(
-    err = mean(BankData.Closed_Account != class_k17)
+    err = mean(BankData$Closed_Account != class_k17)
   )
 
 table(df_pred$BankData.Closed_Account, df_pred$class_k17)
@@ -300,7 +291,7 @@ ROC=roc(df_test$BankData.Closed_Account,as.numeric(df_pred$class_k17),plot = TRU
 ########################################################
 
 #fit the model with the training set
-lda_model = lda(BankData.Closed_Account ~ reduced.PC1 + reduced.PC2, data=df_train)
+lda_model = lda(BankData.Closed_Account ~ TotalPred.PC1 + TotalPred.PC2, data=df_train)
 lda_model
 
 # predict test
@@ -310,7 +301,7 @@ test_pred = predict(lda_model, df_test[, 1:2])$class
 # plot predicted regions
 p_lda = 
   df_test %>%
-  ggplot(aes(x=reduced.PC1, y=reduced.PC2)) + 
+  ggplot(aes(x=TotalPred.PC1, y=TotalPred.PC2)) + 
   geom_point(aes(col=test_pred), alpha=1, pch = 4, size=6) + 
   scale_color_manual("Test fitted values", values = c("blue", "red"))+
   coord_fixed() +
@@ -322,7 +313,7 @@ p_lda
 # visualize test data and predictions
 p_lda + 
   new_scale_color() + 
-  geom_point(data=df_test, mapping=aes(x=reduced.PC1, y=reduced.PC2, col=as.factor(BankData.Closed_Account))) + 
+  geom_point(data=df_test, mapping=aes(x=TotalPred.PC1, y=TotalPred.PC2, col=as.factor(BankData.Closed_Account))) + 
   scale_color_manual("True", values = c("blue", "red"))
 
 # classification error for lda
@@ -345,7 +336,7 @@ ROC=roc(df_test$BankData.Closed_Account,as.numeric(test_pred),plot = TRUE,
 
 #Try with Quadratic Discriminant Analysis (QDA)
 #fit the model with the training set
-qda_model = qda(BankData.Closed_Account ~ reduced.PC1 + reduced.PC2, data=df_train)
+qda_model = qda(BankData.Closed_Account ~ TotalPred.PC1 + TotalPred.PC2, data=df_train)
 qda_model
 
 # predict test
@@ -355,7 +346,7 @@ test_pred = predict(qda_model, df_test[, 1:2])$class
 # plot predicted regions
 p_qda = 
   df_test %>%
-  ggplot(aes(x=reduced.PC1, y=reduced.PC2)) + 
+  ggplot(aes(x=TotalPred.PC1, y=TotalPred.PC2)) + 
   geom_point(aes(col=test_pred), alpha=1, pch = 4, size=6) + 
   scale_color_manual("Test fitted values", values = c("blue", "red"))+
   coord_fixed() +
@@ -367,7 +358,7 @@ p_qda
 # visualize test data and predictions
 p_qda + 
   new_scale_color() + 
-  geom_point(data=df_test, mapping=aes(x=reduced.PC1, y=reduced.PC2, col=as.factor(BankData.Closed_Account))) + 
+  geom_point(data=df_test, mapping=aes(x=TotalPred.PC1, y=TotalPred.PC2, col=as.factor(BankData.Closed_Account))) + 
   scale_color_manual("True", values = c("blue", "red"))
 
 # classification error for qda
