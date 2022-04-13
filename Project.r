@@ -248,7 +248,7 @@ k = optimal_k[[1]][1] #optimal number of neighbors
 #apply k-NN with the optimal number of neighbors
 #k=17
 df_pred = copy(df_test)
-df_pred$class_k17 = knn(train=df_train[,1:2], test = df_test[,1:2], k=17, cl=df_train$Closed_Account)
+df_pred$class_k17 = knn(train=df_train[,1:2], test = df_test[,1:2], k=17, cl=df_train$BankData.Closed_Account)
 
 
 # plot predicted regions
@@ -302,8 +302,8 @@ test_pred = predict(lda_model, df_test[, 1:2])$class
 p_lda = 
   df_test %>%
   ggplot(aes(x=TotalPred.PC1, y=TotalPred.PC2)) + 
-  geom_point(aes(col=test_pred), alpha=1, pch = 4, size=6) + 
-  scale_color_manual("Test fitted values", values = c("blue", "red"))+
+  geom_point(aes(col=test_pred), alpha=1, pch = 16, size=2) + 
+  scale_color_manual("Test fitted values", values = c("#d31919", "#83d319"))+
   coord_fixed() +
   labs(x=quote(X[1]),
        y=quote(X[2]))
@@ -314,7 +314,7 @@ p_lda
 p_lda + 
   new_scale_color() + 
   geom_point(data=df_test, mapping=aes(x=TotalPred.PC1, y=TotalPred.PC2, col=as.factor(BankData.Closed_Account))) + 
-  scale_color_manual("True", values = c("blue", "red"))
+  scale_color_manual("True", values = c("#d31919", "#83d319"))
 
 # classification error for lda
 df_test %>%
@@ -347,8 +347,8 @@ test_pred = predict(qda_model, df_test[, 1:2])$class
 p_qda = 
   df_test %>%
   ggplot(aes(x=TotalPred.PC1, y=TotalPred.PC2)) + 
-  geom_point(aes(col=test_pred), alpha=1, pch = 4, size=6) + 
-  scale_color_manual("Test fitted values", values = c("blue", "red"))+
+  geom_point(aes(col=test_pred), alpha=1, pch = 16, size=2) + 
+  scale_color_manual("Test fitted values", values = c("#d31919", "#83d319"))+
   coord_fixed() +
   labs(x=quote(X[1]),
        y=quote(X[2]))
@@ -359,7 +359,7 @@ p_qda
 p_qda + 
   new_scale_color() + 
   geom_point(data=df_test, mapping=aes(x=TotalPred.PC1, y=TotalPred.PC2, col=as.factor(BankData.Closed_Account))) + 
-  scale_color_manual("True", values = c("blue", "red"))
+  scale_color_manual("True", values = c("#d31919", "#83d319"))
 
 # classification error for qda
 df_test %>%
@@ -447,7 +447,6 @@ table(df_pred$Closed_Account, df_pred$class_k5)
 ROC=roc(test_set$Closed_Account,as.numeric(df_pred$class_k5),plot = TRUE,
         legacy.axes=TRUE,col="midnightblue",lwd=3,
         auc.polygon=T,auc.polygon.col="lightblue",print.auc=T)
-#AUC: 0.837
 
 
 ########################################################
@@ -469,22 +468,22 @@ BankDatac = copy(BankData)
 BankDatac = BankDatac[,1:19]
 union = union(x=BankDatac, y=test2)
 
-Customer_Age = union$Customer_Age
-Dependent_count = union$Dependent_count
-Months_on_book = union$Months_on_book
-Total_Relationship_Count = union$Total_Relationship_Count
-Months_Inactive_12_mon = union$Months_Inactive_12_mon
-Contacts_Count_12_mon = union$Contacts_Count_12_mon
-Credit_Limit = union$Credit_Limit
-Total_Revolving_Bal = union$Total_Revolving_Bal
-Avg_Open_To_Buy = union$Avg_Open_To_Buy
-Total_Amt_Chng_Q4_Q1 = union$Total_Amt_Chng_Q4_Q1
-Total_Trans_Ct = union$Total_Trans_Ct
-Total_Trans_Amt = union$Total_Trans_Amt
-Total_Ct_Chng_Q4_Q1 = union$Total_Ct_Chng_Q4_Q1
-Avg_Utilization_Ratio = union$Avg_Utilization_Ratio
-Income = union$Income
-Closed_Account = union$Closed_Account
+Customer_Age              = union$Customer_Age
+Dependent_count           = union$Dependent_count
+Months_on_book            = union$Months_on_book
+Total_Relationship_Count  = union$Total_Relationship_Count
+Months_Inactive_12_mon    = union$Months_Inactive_12_mon
+Contacts_Count_12_mon     = union$Contacts_Count_12_mon
+Credit_Limit              = union$Credit_Limit
+Total_Revolving_Bal       = union$Total_Revolving_Bal
+Avg_Open_To_Buy           = union$Avg_Open_To_Buy
+Total_Amt_Chng_Q4_Q1      = union$Total_Amt_Chng_Q4_Q1
+Total_Trans_Ct            = union$Total_Trans_Ct
+Total_Trans_Amt           = union$Total_Trans_Amt
+Total_Ct_Chng_Q4_Q1       = union$Total_Ct_Chng_Q4_Q1
+Avg_Utilization_Ratio     = union$Avg_Utilization_Ratio
+Income                    = union$Income
+Closed_Account            = union$Closed_Account
 
 predictors = data.frame(Avg_Utilization_Ratio, Total_Ct_Chng_Q4_Q1, Total_Amt_Chng_Q4_Q1, Total_Revolving_Bal, Contacts_Count_12_mon, Months_Inactive_12_mon, Total_Relationship_Count, Total_Trans_Ct, Total_Trans_Amt)
 ##
