@@ -151,21 +151,21 @@ ROC=roc(TestSet$Closed_Account,test_mod_pred,plot = TRUE,
 ########################################################
 ##Consider only the continuous predictors Total Trans Amt and Total Trans Ct.
 
-require(patchwork) #to plot several charts jointly
+require(patchwork)
 require(manipulate)
-require(hexbin) #for heatmaps
-require(ggridges) #for ridgeplots
-require(systemfonts) # use custom fonts (need to be installed on your OS)  
-require(scico)       # scico color palettes(http://www.fabiocrameri.ch/colourmaps.php) in R 
-require(ggtext)      # add improved text rendering to ggplot2
-require(ggforce)     # add missing functionality to ggplot2
-require(ggdist)      # add uncertainty visualizations to ggplot2
+require(hexbin)
+require(ggridges)
+require(systemfonts)
+require(scico) 
+require(ggtext)
+require(ggforce)    
+require(ggdist)     
 require(gclus)
 
 TotalPred = data.frame(Total_Trans_Ct, Total_Trans_Amt)
 
-TotalPred = prcomp(TotalPred, scale=TRUE) #scale=TRUE, since the dataset comes with different scales and has not been scaled so far
-fviz_eig(TotalPred) #almost 100% of variability caught by the first principal component
+TotalPred = prcomp(TotalPred, scale=TRUE)
+fviz_eig(TotalPred)
 TotalPred = data.frame(TotalPred[["x"]])
 
 data = data.frame(TotalPred$PC1, TotalPred$PC2, BankData$Closed_Account)
@@ -232,8 +232,11 @@ df_scores %>%
 df_scores = as.data.frame(lapply(df_scores, unlist))
 optimal_k = df_scores[order(df_scores$scores, decreasing=TRUE), ]
 
-optimal_k[[1]] #list of values of K, in descending order of associated AUC score
-k = optimal_k[[1]][1] #optimal number of neighbors
+#list of values of K, in descending order of associated AUC score
+optimal_k[[1]] 
+
+#optimal number of neighbors
+k = optimal_k[[1]][1]
 
 #apply k-NN with the optimal number of neighbors
 #k=17
@@ -423,10 +426,13 @@ k = optimal_k[[1]][1] #optimal number of neighbors
 df_pred = copy(test_set)
 df_pred$class_k5 = knn(train=training_set[,1:10], test = test_set[,1:10], k=5, cl=training_set$Closed_Account)
 
-df_pred %>%
+err = df_pred %>%
   summarise(
     err = mean(Closed_Account != class_k5)
   )
+
+# Accuracy New Model
+Accuracy = 1-err
 
 table(df_pred$Closed_Account, df_pred$class_k5)
 
