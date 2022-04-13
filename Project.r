@@ -170,21 +170,16 @@ TotalPred = data.frame(TotalPred[["x"]])
 
 data = data.frame(TotalPred$PC1, TotalPred$PC2, BankData$Closed_Account)
 
-#correlation matrix
-data %>% 
-  dplyr::select(BankData.Closed_Account, TotalPred.PC1, TotalPred.PC2) %>%
-  ggcorr(label=TRUE)
-
 #visualize data points
-pl1 = data %>%
+PP1 = data %>%
   ggplot(aes(x=TotalPred.PC1, y=BankData.Closed_Account)) + 
   geom_point()
 
-pl2 = data %>%
+PP2 = data %>%
   ggplot(aes(x=TotalPred.PC2, y=BankData.Closed_Account)) + 
   geom_point()
 
-pl1 / pl2
+PP1 / PP2
 
 #split into training and test set
 df_train = data[1:4300,]
@@ -239,11 +234,6 @@ optimal_k = df_scores[order(df_scores$scores, decreasing=TRUE), ]
 
 optimal_k[[1]] #list of values of K, in descending order of associated AUC score
 k = optimal_k[[1]][1] #optimal number of neighbors
-#NOTE: the optimal number of neighbors may vary; anyway, even with variations it is
-#always a very good option (usually, among the first 3/4 best Ks)
-#by running the previous lines of code we can fine-tune the parameter; k=17 is 
-#always in the first positions, yielding highest overall AUC score compared to other options
-
 
 #apply k-NN with the optimal number of neighbors
 #k=17
@@ -281,10 +271,6 @@ table(df_pred$BankData.Closed_Account, df_pred$class_k17)
 ROC=roc(df_test$BankData.Closed_Account,as.numeric(df_pred$class_k17),plot = TRUE,
         legacy.axes=TRUE,col="midnightblue",lwd=3,
         auc.polygon=T,auc.polygon.col="lightblue",print.auc=T)
-#AUC fluctuates around 0.79 with k=17, which seems to be the best choice for this parameter
-#even if there are some fluctuations
-
-
 
 ########################################################
 ## Model 2: Discriminant Analysis (Discriminant Analysis)
@@ -467,11 +453,6 @@ BankDat = copy(BankData)
 BankDat = BankDat[,1:19]
 union = union(x=BankDat, y=TestSet)
 
-ncol(TestSet)
-ncol(BankDat)
-ncol(BankData)
-
-
 
 Customer_Age              = union$Customer_Age
 Dependent_count           = union$Dependent_count
@@ -490,7 +471,7 @@ Avg_Utilization_Ratio     = union$Avg_Utilization_Ratio
 Income                    = union$Income
 Closed_Account            = union$Closed_Account
 
-str(Income)
+str(Closed_Account)
 
 predictors = data.frame(Avg_Utilization_Ratio, Total_Ct_Chng_Q4_Q1, Total_Amt_Chng_Q4_Q1, Total_Revolving_Bal, Contacts_Count_12_mon, Months_Inactive_12_mon, Total_Relationship_Count, Total_Trans_Ct, Total_Trans_Amt)
 
@@ -511,24 +492,26 @@ training_set = initial_split[1:4300,]
 test_set = initial_split[4301:5301,]
 true_test_set = PCA[5302:10127,]
 
+poly(PCA$PC1,9)
+
+training_set$Closed_Account
 
 #model with PCA
-mod = glm(formula= Closed_Account~poly(PC1,9)+
-                                  poly(PC2,9)+
-                                  poly(PC3,2)+
-                                  poly(PC4,7)+
-                                  poly(PC5,5)+
-                                  poly(PC6,2)+
-                                  poly(PC7,2)+
-                                  poly(PC8,5)+
-                                  poly(PC9,5)+
-                                  Gender+
-                                  ChangesRatio+
-                                  poly(AmtChTr,5)+
-                                  poly(CtChTr,5)+
-                                  poly(RevolvingOverRelationship,4), 
-                family = binomial(link="logit"),
-                data = training_set)
+mod = glm(formula= BankData$Closed_Account ~ poly(PCA$PC1,9)+
+                                  poly(PCA$PC2,9)+
+                                  poly(PCA$PC3,2)+
+                                  poly(PCA$PC4,7)+
+                                  poly(PCA$PC5,5)+
+                                  poly(PCA$PC6,2)+
+                                  poly(PCA$PC7,2)+
+                                  poly(PCA$PC8,5)+
+                                  poly(PCA$PC9,5)+
+                                  PCA$Gender+
+                                  PCA$ChangesRatio+
+                                  poly(PCA$AmtChTr,5)+
+                                  poly(PCA$CtChTr,5)+
+                                  poly(PCA$RevolvingOverRelationship,4), 
+                family = binomial(link="logit"))
 
 summary(mod)
 
@@ -592,7 +575,7 @@ initial_split["Closed_Account"] = BankData$Closed_Account
 training_set = initial_split[1:4300,]
 test_set = initial_split[4301:5301,]
 true_test_set = predictors[5302:10127,]
-
+training_set$Closed_Account = BankData$Closed_Account[0:4300]
 #model without PCA
 mod = glm(formula = Closed_Account ~ poly(Avg_Utilization_Ratio,6)+poly(Total_Ct_Chng_Q4_Q1,3)+
             poly(Total_Amt_Chng_Q4_Q1,5)+poly(Total_Revolving_Bal,3)+
@@ -723,6 +706,63 @@ Frozen = purchases$Frozen
 Detergents_Paper = purchases$Detergents_Paper
 Delicatessen = purchases$Delicatessen
 
+
+
+#PCA & PCA VISUALIZATION
+purchases_num = purchases[3:8]
+pr_comp = prcomp(purchases_num, scale=TRUE)
+
+
+fviz_eig(pr_comp)
+
+fviz_pca_ind(pr_comp,
+             col.ind = "cos2", # Color by the quality of representation
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+)
+
+fviz_pca_var(pr_comp,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+)
+
+
+fviz_pca_biplot(pr_comp, repel = TRUE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969"  # Individuals color
+)
+
+
+reduced_purchases = data.frame(pr_comp[["x"]])
+reduced_purchases = reduced_purchases %>%
+  filter(reduced_purchases$PC1>-2.5 & reduced_purchases$PC2>-2.5)
+
+x <- reduced_purchases$PC1
+y <- reduced_purchases$PC2
+z <- reduced_purchases$PC3
+
+reduced_purchases%>%
+  ggplot(aes(x=x, y=y)) +
+  geom_point(alpha=0.5, size=3, color="blue")  +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+fig1 = 
+  plot_ly(x=x, y=y, z=z,
+          marker=list(size=3, color="blue", 
+                      colorscale="rgb(0,0,0)", 
+                      line=list(color="rgb(0,0,0)", width=1),
+                      showscale=F,
+                      opacity=0.3)) %>%
+  add_markers() %>%
+  layout(scene = list(
+    aspectratio =  list(x=1, y=1, z=1)
+  )) 
+fig1
+
+#Clustering
+
 clustering_initialize = function(dataframe, nclusters, nrows){ 
   # randomly assign points
   dataframe$lab = as.factor(sample(1:nclusters, nrows, replace = T))
@@ -849,7 +889,10 @@ plot(h2)
 abline(h=1, col=2)
 cutree(h2, h=1)
 
-###POINT 10
+
+########################################################
+##POINT 8
+########################################################
 #For this point we will take in consideration labels obtained from the K-means clustering algorithm
 
 
