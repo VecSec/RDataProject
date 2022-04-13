@@ -454,19 +454,24 @@ ROC=roc(test_set$Closed_Account,as.numeric(df_pred$class_k5),plot = TRUE,
 ########################################################
 
 ##prepare true test set
-test2 <- read.csv('bank_accounts_test.csv', stringsAsFactors = T)
+TestSet <- read.csv('bank_accounts_test.csv', stringsAsFactors = T)
 
-test2 = test2 %>%
+TestSet = TestSet %>%
   filter(!duplicated(.)) %>%
   dplyr::select(-1) %>%
   mutate(Education_Level = na_if(Education_Level, 'Unknown')) %>%
   mutate(Marital_Status = na_if(Marital_Status, 'Unknown'))
 
+      
+BankDat = copy(BankData)
+BankDat = BankDat[,1:19]
+union = union(x=BankDat, y=TestSet)
 
-##incorporate true test set into main dataframe
-BankDatac = copy(BankData)
-BankDatac = BankDatac[,1:19]
-union = union(x=BankDatac, y=test2)
+ncol(TestSet)
+ncol(BankDat)
+ncol(BankData)
+
+
 
 Customer_Age              = union$Customer_Age
 Dependent_count           = union$Dependent_count
@@ -485,19 +490,11 @@ Avg_Utilization_Ratio     = union$Avg_Utilization_Ratio
 Income                    = union$Income
 Closed_Account            = union$Closed_Account
 
+str(Income)
+
 predictors = data.frame(Avg_Utilization_Ratio, Total_Ct_Chng_Q4_Q1, Total_Amt_Chng_Q4_Q1, Total_Revolving_Bal, Contacts_Count_12_mon, Months_Inactive_12_mon, Total_Relationship_Count, Total_Trans_Ct, Total_Trans_Amt)
-##
 
-#Since we are dealing with a response which is not balanced (the proportion of class0 and class1 is 5:1),
-#we could use a weighted logistic regression to deal with this problem (rather than optimizing
-#the threshold)
-#outcome = training_set$Closed_Account
-#weighted <- as.data.frame(cbind(outcome))
-#weighted = weighted %>%
-#mutate(weights = ifelse(outcome==1,5,1))
-
-##with PCA
-PCA = prcomp(predictors, scale=TRUE) #scale=TRUE, since the dataset comes with different scales and has not been scaled so far
+PCA = prcomp(predictors, scale=TRUE)
 fviz_eig(PCA) 
 PCA = data.frame(PCA[["x"]])
 
@@ -514,10 +511,24 @@ training_set = initial_split[1:4300,]
 test_set = initial_split[4301:5301,]
 true_test_set = PCA[5302:10127,]
 
+
 #model with PCA
-mod = glm(formula = Closed_Account ~ poly(PC1,9)+poly(PC2,9)+poly(PC3,2)+poly(PC4,7)+poly(PC5,5)+poly(PC6,2)+poly(PC7,2)+poly(PC8,5)+poly(PC9,5)+Gender+ChangesRatio+poly(AmtChTr,5)+poly(CtChTr,5)+poly(RevolvingOverRelationship,4), 
-          family = binomial(link="logit"),
-          data = training_set)
+mod = glm(formula= Closed_Account~poly(PC1,9)+
+                                  poly(PC2,9)+
+                                  poly(PC3,2)+
+                                  poly(PC4,7)+
+                                  poly(PC5,5)+
+                                  poly(PC6,2)+
+                                  poly(PC7,2)+
+                                  poly(PC8,5)+
+                                  poly(PC9,5)+
+                                  Gender+
+                                  ChangesRatio+
+                                  poly(AmtChTr,5)+
+                                  poly(CtChTr,5)+
+                                  poly(RevolvingOverRelationship,4), 
+                family = binomial(link="logit"),
+                data = training_set)
 
 summary(mod)
 
@@ -653,6 +664,43 @@ true_test_set$pred = test_mod_pred
 table(test_mod_pred)#confusion matrix
 
 #where "test_mod_pred" are the predictions for each row of the true test set
+
+########################################################
+## POINT 6
+########################################################
+
+#We have to provide the correct threshold value in order to provide a relevant metrics in the case of the cost (gain) matrix
+# Let's suppose that
+# For every customer that doesn't close the contract = -50 cost (corresponds to a 50 gain)
+# For every customer that closes the contract = +50 cost (corresponds to a -50 gain)
+# If we are able to predict that an user is about to close the account we can propose a more convenient offer to mantain that client this mill mean = -20 cost ( corresponds to a +20 gain)
+(costMat <- matrix(c(50,0,-50,--20), ncol=2, 
+                   dimnames = list(c("No", "Yes"), c("No", "Yes"))))
+# If we propose the offer we are sure that they accept so we gain 50 and pay 30, so we get 20
+# If we do not propose the offer rand they don't close the contract we get 50 
+# If we do not propose the offer and they close the account we lose 50
+
+# To understand the overall performances in terms of the cost matrix, we must pick a threshold, compute the confusion matrix, and match it with cost matrix
+# Keeping the same threshold of before (che threshold abbiamo deciso prima?), what is the final cost?
+# On the train
+confMatAic <- table(stepAicPreds, d_train$y)
+(totcostAic <- sum(costMat*confMatAic))
+confMatBic <- table(stepBicPreds, d_train$y)
+(totcostBic <- sum(costMat*confMatBic))
+# AIC has lower cost = larger gain
+
+# Sul test
+confMatAicOut <- table(stepAicPredsOut, d_val$y)
+(totcostAicOut <- sum(costMat*confMatAicOut))
+confMatBicOut <- table(stepBicPredsOut, d_val$y)
+(totcostBicOut <- sum(costMat*confMatBicOut))
+# AIC has lower cost = larger gain
+
+#in sostanza dobbiamo fare vari test manualmente, bisogna provare diversi treshold values
+#il treshold deve rappresentare fino a quale livello all'interno della logistic curve noi pensiamo che un cliente stia per lasciare la banca
+#allora da quel valore(porzione di customer base) la banca offrirà un servizio più conveniente che convincerà il cliente a rimanere e a far comunque guadagnare un +20 alla banca
+#DOMANDA: dove posso andare a cambiare il treshold value per decidere a quale livello della curva i customers stanno per lascviare la banca?
+
 
 ########################################################
 ## 2) CLUSTERING
